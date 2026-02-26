@@ -1,98 +1,107 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList, Dimensions, Platform } from 'react-native';
+import { supabase } from '../../lib/supabase';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+// 获取屏幕宽度，用于简单的响应式判断
+const { width } = Dimensions.get('window');
+const isWeb = Platform.OS === 'web';
 
-export default function HomeScreen() {
+export default function DentalApp() {
+  const [patients, setPatients] = useState<any[]>([]);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  const fetchPatients = async () => {
+    const { data } = await supabase.from('patients').select('*').order('created_at', { ascending: false });
+    if (data) setPatients(data);
+  };
+
+  const addPatient = async () => {
+    if (!name || !phone) return;
+    const { error } = await supabase.from('patients').insert([{ name, phone }]);
+    if (!error) {
+      setName(''); setPhone('');
+      fetchPatients();
+    }
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      {/* 顶部标题栏 */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>🦷 牙科诊所管理系统 (Demo)</Text>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <View style={[styles.content, isWeb && width > 768 ? styles.webRow : styles.mobileColumn]}>
+        
+        {/* 左侧/上方：挂号录入表单 */}
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>新患者挂号</Text>
+          <TextInput 
+            style={styles.input} 
+            placeholder="姓名" 
+            value={name} 
+            onChangeText={setName} 
+          />
+          <TextInput 
+            style={styles.input} 
+            placeholder="电话" 
+            keyboardType="phone-pad"
+            value={phone} 
+            onChangeText={setPhone} 
+          />
+          <TouchableOpacity style={styles.button} onPress={addPatient}>
+            <Text style={styles.buttonText}>提交录入</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 右侧/下方：患者列表 */}
+        <View style={styles.listSection}>
+          <Text style={styles.sectionTitle}>今日就诊列表</Text>
+          <FlatList
+            data={patients}
+            keyExtractor={(item) => item.patient_id.toString()}
+            renderItem={({ item }) => (
+              <View style={styles.patientCard}>
+                <View>
+                  <Text style={styles.patientName}>{item.name}</Text>
+                  <Text style={styles.patientPhone}>{item.phone}</Text>
+                </View>
+                <TouchableOpacity style={styles.detailButton}>
+                  <Text style={styles.detailButtonText}>进入诊疗</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          />
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  header: { height: 60, backgroundColor: '#007AFF', justifyContent: 'center', paddingHorizontal: 20 },
+  headerTitle: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  content: { flex: 1, padding: 20 },
+  webRow: { flexDirection: 'row', gap: 20 }, // 网页端横向布局
+  mobileColumn: { flexDirection: 'column' }, // iPad/手机端纵向布局
+  formSection: { flex: 1, backgroundColor: 'white', padding: 20, borderRadius: 12, elevation: 3, maxHeight: 300 },
+  listSection: { flex: 2, backgroundColor: 'white', padding: 20, borderRadius: 12, elevation: 3 },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 15, color: '#333' },
+  input: { borderWidth: 1, borderColor: '#DDD', padding: 12, borderRadius: 8, marginBottom: 10 },
+  button: { backgroundColor: '#34C759', padding: 15, borderRadius: 8, alignItems: 'center' },
+  buttonText: { color: 'white', fontWeight: 'bold' },
+  patientCard: { 
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 15, borderBottomWidth: 1, borderBottomColor: '#EEE' 
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
+  patientName: { fontSize: 16, fontWeight: '600' },
+  patientPhone: { color: '#666', marginTop: 4 },
+  detailButton: { backgroundColor: '#E1E9FF', padding: 8, borderRadius: 6 },
+  detailButtonText: { color: '#007AFF', fontSize: 12, fontWeight: '600' }
 });
