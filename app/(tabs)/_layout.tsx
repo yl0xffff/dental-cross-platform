@@ -15,6 +15,9 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarStyle: { 
+          display: 'none'  // <--- 加入这一行，彻底隐藏底部导航条
+        },
       }}>
       <Tabs.Screen
         name="index"
